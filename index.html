@@ -214,13 +214,14 @@ const COMO_SERVICE="00001554-1212-efde-1523-785feabcd123";
 const WRITE_ID="05103203";
 const READ_TRIGGERS=["00badfed050080","00badfed030080","00badfed0d0080"];
 const DEFAULT_TAIL="c02bce08";
-const VERSION="Canary 0.3 · 2026-11-09";
+const VERSION="Canary 0.4 · 2026-11-09";
 const EMBED=(()=>{ try{ return window.top!==window.self; }catch(_){ return true; } })();  // artifact preview = demo; hosted = real BLE
 
 const $=(id)=>document.getElementById(id);
 let device=null,gatt=null,writeChar=null,currentLimit=null,lastTail=DEFAULT_TAIL;
 let armed=null,armTimer=null,pending=null,watchdog=null,soundOn=true,connected=false;
-let diag={services:[],writeProps:"",sent:"",readback:"",frames:[],reason:""};
+let diag={services:[],writeProps:"",sent:"",readback:"",frames:[],reason:"",step:""};
+const uuidEq=(a,b)=>String(a).toLowerCase()===String(b).toLowerCase();
 
 /* ---- helpers ---- */
 const hexToBytes=(h)=>{h=h.replace(/\s+/g,"");const o=new Uint8Array(h.length/2);for(let i=0;i<o.length;i++)o[i]=parseInt(h.substr(i*2,2),16);return o;};
@@ -266,8 +267,27 @@ function setLimit(kmh,live){
 }
 
 /* ================= connect ================= */
+// iOS/Bluefy reports UUIDs in UPPERCASE and can expose services a beat late —
+// retry discovery, match case-insensitively, and fall back to a direct lookup.
+async function findCanService(g){
+  for(let attempt=0;attempt<4;attempt++){
+    try{
+      const services=await g.getPrimaryServices();
+      if(services&&services.length) diag.services=services.map(s=>s.uuid);
+      const hit=services&&services.find(s=>uuidEq(s.uuid,CAN.SERVICE));
+      if(hit) return hit;
+    }catch(_){}
+    try{ const direct=await g.getPrimaryService(CAN.SERVICE); if(direct){ if(!diag.services.length)diag.services=[direct.uuid]; return direct; } }catch(_){}
+    await new Promise(r=>setTimeout(r,350));
+  }
+  return null;
+}
+async function getChar(service,uuid){
+  try{ return await service.getCharacteristic(uuid); }
+  catch(_){ const cs=await service.getCharacteristics(); const hit=cs.find(c=>uuidEq(c.uuid,uuid)); if(hit)return hit; throw new Error("characteristic "+uuid+" not found on service"); }
+}
 async function connect(){
-  $("connErr").textContent="";
+  $("connErr").textContent=""; diag.reason=""; diag.step="requesting device";
   if(EMBED || !navigator.bluetooth){
     enterDemo(); return;
   }
@@ -277,19 +297,20 @@ async function connect(){
     device.addEventListener("gattserverdisconnected",onDisc);
     setPill("wait","LINKING");
     gatt=await device.gatt.connect();
-    const services=await gatt.getPrimaryServices();
-    diag.services=services.map(s=>s.uuid);
-    const can=services.find(s=>s.uuid===CAN.SERVICE);
-    if(!can){ $("connErr").textContent="No CAN bridge (92914B) on this bike — tap 'what to send me' after connecting."; show("view-main"); setPill("","NO CAN"); diag.reason="no 92914B service"; return; }
-    writeChar=await can.getCharacteristic(CAN.WRITE);
+    diag.step="connected · discovering CAN service";
+    const can=await findCanService(gatt);
+    if(!can){ $("connErr").textContent="Connected, but the 92914B CAN service didn't resolve — tap 'what to send me'."; show("view-main"); setPill("","NO CAN"); diag.reason="92914B service present but did not resolve"; diag.step="service match failed"; return; }
+    diag.step="CAN service resolved · opening characteristics";
+    writeChar=await getChar(can,CAN.WRITE);
     diag.writeProps="writeWithoutResponse="+writeChar.properties.writeWithoutResponse+" write="+writeChar.properties.write;
-    const notify=await can.getCharacteristic(CAN.NOTIFY);
+    const notify=await getChar(can,CAN.NOTIFY);
     await notify.startNotifications();
     notify.addEventListener("characteristicvaluechanged",(e)=>feed(bytesToHex(new Uint8Array(e.target.value.buffer))));
+    diag.step="notifications on · sending read triggers";
     for(const t of READ_TRIGGERS){ await rawWrite(t); await new Promise(r=>setTimeout(r,120)); }
-    connected=true; setPill("on",(device.name||"BIKE").toUpperCase());
+    connected=true; setPill("on",(device.name||"BIKE").toUpperCase()); diag.step="live";
     show("view-main"); $("heroMeta").textContent="waiting for the controller…"; $("mainNote").textContent=""; vibe(12);
-  }catch(e){ setPill("","OFFLINE"); $("connErr").textContent=e.name==="NotFoundError"?"No bike selected.":"Connect failed: "+(e.message||e); }
+  }catch(e){ setPill("","OFFLINE"); diag.reason="connect threw: "+(e.message||e); $("connErr").textContent=e.name==="NotFoundError"?"No bike selected.":"Connect failed: "+(e.message||e); }
 }
 function onDisc(){ connected=false; writeChar=null; currentLimit=null; disarm(); setPill("","OFFLINE");
   $("heroNum").className="hero-num unknown"; $("heroNum").textContent="—"; $("heroUnit").hidden=true; $("heroMeta").textContent="disconnected"; show("view-connect"); }
@@ -399,6 +420,7 @@ function buildDiag(){
   L.push("");
   L.push("<span class='k'>bike</span>    "+((device&&device.name)||(demo?"(demo — no bike)":"?")));
   L.push("<span class='k'>state</span>   "+(connected?"connected":"disconnected"));
+  L.push("<span class='k'>reached</span> "+(diag.step||"(not started)"));
   L.push("<span class='k'>write</span>   "+(diag.writeProps||"(char not opened)"));
   L.push("<span class='k'>sent</span>    "+(diag.sent||"(nothing sent)"));
   L.push("<span class='k'>readback</span> last 02f83203 = "+(diag.readback||"(none received)"));
