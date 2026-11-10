@@ -1,479 +1,671 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0a">
 <title>Canary</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
 <style>
-/* ======================================================================
-   CANARY — Veloretti Ace speed control.  Editorial amber · black.
-   Real Web Bluetooth when hosted; self-contained demo when not connected.
-   ====================================================================== */
 :root{
-  --bg:#0a0a0c; --fg:#f3f2ee; --dim:#9a948a; --faint:#5e5950; --line:rgba(255,255,255,.1);
-  --amber:#ffcc00; --amber-dk:#d9a800; --red:#ff6a5a;
-  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",system-ui,sans-serif;
-  --mono:"SFMono-Regular",ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace;
-  --pixel:"Silkscreen",var(--mono);
-  color-scheme:dark;
+  --bg:#0a0a0a; --panel:#141413; --panel2:#1c1b19; --line:#2a2825;
+  --fg:#f4f1ea; --dim:#8c8880; --faint:#5a5751;
+  --amber:#ffc400; --amber-deep:#e0a800; --green:#3ddc84; --red:#ff5a4d;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --ui:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  --r:16px;
 }
-*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-html,body{ height:100%; }
-body{ margin:0; background:var(--bg); color:var(--fg); font-family:var(--sans); line-height:1.4; -webkit-font-smoothing:antialiased; overflow:hidden; }
-.app{ position:relative; height:100%; max-width:540px; margin:0 auto;
-  padding:calc(env(safe-area-inset-top,0px) + 16px) max(20px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 20px) max(20px,env(safe-area-inset-left,0px));
-  display:flex; flex-direction:column;
-  background-image:radial-gradient(120% 60% at 50% -5%, rgba(255,204,0,.05), transparent 55%); }
-@media (prefers-reduced-motion:reduce){ *{ transition:none !important; } }
-.view{ flex:1; display:flex; flex-direction:column; min-height:0; }
-.view[hidden]{ display:none; }
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--ui)}
+body{min-height:100svh;overflow-x:hidden}
+#app{max-width:480px;margin:0 auto;min-height:100svh;
+  padding:calc(env(safe-area-inset-top) + 18px) 20px calc(env(safe-area-inset-bottom) + 22px);
+  display:flex;flex-direction:column}
+.view{flex:1;display:flex;flex-direction:column;animation:fade .25s ease}
+.view[hidden]{display:none}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
-/* header */
-.hdr{ display:flex; align-items:center; justify-content:space-between; }
-.mark{ font-family:var(--pixel); font-weight:700; font-size:17px; color:var(--amber); letter-spacing:1px; text-shadow:0 0 16px rgba(255,204,0,.3); }
-.pill{ font-family:var(--mono); font-size:11px; letter-spacing:.5px; color:var(--faint); border:1px solid var(--line); border-radius:999px; padding:5px 11px 5px 9px; display:flex; align-items:center; gap:7px; }
-.pill .d{ width:7px; height:7px; border-radius:50%; background:var(--faint); transition:.25s; }
-.pill.on{ color:var(--amber); border-color:rgba(255,204,0,.35); } .pill.on .d{ background:var(--amber); box-shadow:0 0 9px var(--amber); }
-.pill.wait .d{ background:var(--amber); animation:blink 1s steps(2) infinite; }
-@keyframes blink{ 50%{ opacity:.2; } }
+/* brand */
+.brand{font-family:'Silkscreen',var(--mono);font-weight:700;letter-spacing:.04em;color:var(--amber);font-size:22px}
+.brand.sm{font-size:14px}
 
-/* ---- CONNECT view ---- */
-#view-connect{ justify-content:center; align-items:flex-start; text-align:left; gap:0; }
-.big-mark{ font-family:var(--pixel); color:var(--amber); font-size:54px; line-height:1; letter-spacing:1px; text-shadow:0 0 30px rgba(255,204,0,.3); margin-bottom:14px; }
-.lede-xl{ font-size:34px; font-weight:800; letter-spacing:-1.2px; line-height:1; margin:0 0 10px; }
-.lede-sub{ color:var(--dim); font-size:14px; max-width:30ch; margin:0 0 30px; font-family:var(--mono); }
+/* connect */
+[data-view="connect"]{justify-content:center;gap:14px}
+.lede{font-size:30px;line-height:1.08;font-weight:800;letter-spacing:-.02em;margin:14px 0 0}
+.sub{color:var(--dim);font-size:15px;line-height:1.5;margin:0}
+.cta{margin-top:10px;background:var(--amber);color:#0a0a0a;border:0;border-radius:var(--r);
+  padding:17px;font-size:17px;font-weight:800;font-family:var(--ui);cursor:pointer;transition:transform .1s ease,filter .15s}
+.cta:active{transform:scale(.98);filter:brightness(1.05)}
+.status{min-height:20px;color:var(--amber-deep);font-family:var(--mono);font-size:13px;margin:4px 0 0}
+.ghost{background:none;border:0;color:var(--faint);font-size:12px;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:6px;align-self:flex-start}
 
-/* ---- MAIN view ---- */
-#view-main{ gap:0; }
-.spacer{ flex:1; min-height:8px; }
-.eyebrow{ font-family:var(--mono); font-size:11px; letter-spacing:2.5px; text-transform:uppercase; color:var(--dim); }
-.hero-num{ font-family:var(--mono); font-weight:700; font-size:clamp(78px,26vw,120px); line-height:.86; letter-spacing:-4px; font-variant-numeric:tabular-nums; margin:8px 0 2px; transition:color .4s, text-shadow .4s; }
-.hero-num.boost{ color:var(--amber); text-shadow:0 0 44px rgba(255,204,0,.4); }
-.hero-num.unknown{ color:var(--faint); font-size:54px; letter-spacing:2px; }
-.hero-unit{ font-family:var(--mono); font-size:15px; color:var(--dim); margin-left:4px; }
-.hero-meta{ font-family:var(--mono); font-size:11.5px; color:var(--faint); min-height:15px; margin-top:6px; }
-.rows{ margin-top:22px; }
-.row{ display:flex; align-items:center; gap:14px; padding:18px 2px; border-top:1px solid var(--line); cursor:pointer; transition:opacity .2s; -webkit-user-select:none; user-select:none; }
-.row:last-child{ border-bottom:1px solid var(--line); }
-.row:active{ opacity:.6; }
-.row .rn{ font-family:var(--mono); font-weight:700; font-size:40px; letter-spacing:-1.5px; width:94px; color:var(--fg); transition:color .25s; }
-.row .rt{ flex:1; }
-.row .rt .a{ font-weight:700; font-size:16px; }
-.row .rt .b{ font-family:var(--mono); font-size:12px; color:var(--dim); }
-.row .rmark{ font-family:var(--mono); font-size:11px; color:var(--faint); text-align:right; }
-.row.live{ }
-.row.live .rn{ color:var(--amber); }
-.row.live .rmark{ color:var(--amber); }
-.row[aria-disabled="true"]{ opacity:.35; pointer-events:none; }
+/* main: top bar */
+.bar{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.bar .brand{flex:0 0 auto}
+.pill{margin-left:auto;display:inline-flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--line);
+  border-radius:999px;padding:6px 12px;font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--dim)}
+.pill i{width:8px;height:8px;border-radius:50%;background:var(--faint)}
+.pill.live i{background:var(--green);box-shadow:0 0 10px var(--green)}
+.pill.busy i{background:var(--amber);box-shadow:0 0 10px var(--amber);animation:pulse 1s infinite}
+.pill.off i{background:var(--red)}
+.pill.live{color:var(--green)} .pill.busy{color:var(--amber)} .pill.off{color:var(--red)}
+@keyframes pulse{50%{opacity:.35}}
+.icon{background:var(--panel);border:1px solid var(--line);color:var(--fg);border-radius:10px;width:36px;height:34px;font-size:18px;line-height:1;cursor:pointer}
 
-/* confirm bar */
-.confirm{ position:absolute; left:max(20px,env(safe-area-inset-left,0px)); right:max(20px,env(safe-area-inset-right,0px));
-  bottom:calc(env(safe-area-inset-bottom,0px) + 18px); transform:translateY(130%); transition:transform .4s cubic-bezier(.2,.9,.2,1); z-index:30; }
-.confirm.show{ transform:translateY(0); }
-.confirm .q{ font-family:var(--mono); font-size:12px; color:var(--dim); text-align:center; margin-bottom:9px; }
-.confirm .cbtns{ display:flex; gap:10px; }
-.btn{ flex:1; border:1px solid var(--amber); background:transparent; color:var(--amber); font-family:var(--mono); font-weight:600;
-  font-size:15px; padding:17px; border-radius:16px; cursor:pointer; letter-spacing:.3px; transition:transform .12s; }
-.btn:active{ transform:scale(.98); }
-.btn.primary{ background:var(--amber); color:#120d00; border-radius:999px; flex:2; }
-.btn.cancel{ border-color:var(--line); color:var(--dim); flex:0 0 58px; padding:17px 0; }
-.btn.full{ width:100%; }
+.banner{margin:4px 0 12px;border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:12px 14px;
+  font-family:var(--mono);font-size:12px;color:var(--amber-deep);display:flex;align-items:center;gap:10px}
+.banner button{margin-left:auto;background:var(--amber);color:#0a0a0a;border:0;border-radius:8px;padding:7px 12px;font-weight:800;font-size:12px;cursor:pointer}
 
-.foot{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:14px; }
-.link{ font-family:var(--mono); font-size:11.5px; color:var(--faint); background:none; border:0; cursor:pointer; text-align:left; }
-.link u{ color:var(--dim); }
-.mute{ font-family:var(--mono); font-size:11.5px; color:var(--faint); background:none; border:0; cursor:pointer; }
-.err{ color:var(--red); font-family:var(--mono); font-size:12px; min-height:16px; text-align:center; margin-top:8px; }
-.note{ font-family:var(--mono); font-size:10px; color:var(--faint); text-align:center; line-height:1.6; margin-top:10px; }
-.demotag{ font-family:var(--mono); font-size:10px; letter-spacing:1px; color:#120d00; background:var(--amber); border-radius:5px; padding:2px 7px; }
+/* reading */
+.reading{margin:16px 0 8px;padding:22px;border:1px solid var(--line);border-radius:var(--r);
+  background:radial-gradient(130% 100% at 50% 0,#181715 0,#0f0e0d 100%);text-align:center}
+.rnum{display:flex;align-items:baseline;justify-content:center;gap:8px}
+#limitNum{font-size:84px;font-weight:800;letter-spacing:-.04em;line-height:.9;font-variant-numeric:tabular-nums}
+#limitNum.boost{color:var(--amber)}
+#limitNum.unknown{color:var(--faint)}
+.unit{font-size:19px;color:var(--dim);font-weight:700}
+.rmeta{margin-top:12px;font-family:var(--mono);font-size:12px;color:var(--dim);min-height:16px;letter-spacing:.02em}
+.rmeta .dot{color:var(--green)} .rmeta.stale{color:var(--amber-deep)}
 
-/* ---- DIAGNOSTIC view ---- */
-#view-diag{ gap:14px; }
-.diag-h{ display:flex; align-items:center; justify-content:space-between; }
-.diag-title{ font-size:24px; font-weight:800; letter-spacing:-.6px; }
-.diag-x{ background:none; border:0; color:var(--dim); font-size:26px; cursor:pointer; line-height:1; }
-.diag-card{ flex:1; min-height:0; overflow:auto; border:1px solid var(--line); border-radius:14px; background:#111013; padding:14px; }
-.diag-lead{ font-family:var(--mono); font-size:12px; color:var(--amber); margin-bottom:10px; line-height:1.5; }
-#diagText{ font-family:var(--mono); font-size:11px; line-height:1.55; white-space:pre-wrap; word-break:break-all; margin:0; color:var(--fg); }
-#diagText .k{ color:var(--dim); } #diagText .bad{ color:var(--red); } #diagText .ok{ color:var(--amber); }
-.shot{ font-family:var(--mono); font-size:11.5px; color:var(--dim); text-align:center; line-height:1.6; }
-.shot b{ color:var(--amber); }
+/* selector */
+.selector{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.opt{position:relative;text-align:left;background:var(--panel);border:1.5px solid var(--line);border-radius:var(--r);
+  padding:16px 16px 18px;cursor:pointer;color:var(--fg);transition:transform .1s,border-color .15s,background .15s}
+.opt:active{transform:scale(.98)}
+.opt .tag{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--dim)}
+.opt .big{font-size:40px;font-weight:800;letter-spacing:-.03em;margin-top:8px;line-height:1}
+.opt .big small{font-size:15px;font-weight:700;color:var(--dim);margin-left:4px}
+.opt .desc{font-size:12px;color:var(--dim);margin-top:6px;line-height:1.35}
+.opt[data-target="35"] .big{color:var(--amber)}
+.opt.live{border-color:var(--amber);background:linear-gradient(180deg,#1f1b10,#141310)}
+.opt .live-badge{position:absolute;top:12px;right:12px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;
+  color:#0a0a0a;background:var(--amber);border-radius:5px;padding:2px 6px;display:none}
+.opt.live .live-badge{display:block}
 
-/* ---- celebration overlay ---- */
-#cel{ position:fixed; inset:0; z-index:60; pointer-events:none; display:none; }
-#cel.show{ display:block; }
-#celCanvas{ position:absolute; inset:0; width:100%; height:100%; }
-.stamp{ position:absolute; left:50%; top:46%; transform:translate(-50%,-50%) scale(.6); text-align:center; opacity:0; }
-.stamp.show{ animation:stampIn .5s cubic-bezier(.2,1.3,.3,1) forwards; }
-.stamp .big{ font-family:var(--pixel); font-weight:700; font-size:46px; letter-spacing:1px; line-height:1; }
-.stamp .sub{ font-family:var(--mono); font-size:13px; letter-spacing:3px; margin-top:10px; text-transform:uppercase; }
-.stamp.boost .big{ color:var(--amber); text-shadow:0 0 40px rgba(255,204,0,.6); }
-.stamp.boost .sub{ color:var(--amber); }
-.stamp.restore .big{ color:var(--fg); }
-.stamp.restore .sub{ color:var(--dim); }
-@keyframes stampIn{ 0%{ opacity:0; transform:translate(-50%,-50%) scale(.5); } 60%{ opacity:1; } 100%{ opacity:1; transform:translate(-50%,-50%) scale(1); } }
-.flash{ position:absolute; inset:0; background:radial-gradient(circle at 50% 54%, rgba(255,204,0,.55), transparent 60%); opacity:0; }
-.flash.go{ animation:flashA .5s ease-out forwards; }
-@keyframes flashA{ 0%{ opacity:0; } 20%{ opacity:1; } 100%{ opacity:0; } }
-.splash-cover{ position:fixed; inset:0; z-index:70; background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; transition:opacity .5s; }
-.splash-cover .prog{ width:150px; height:5px; background:#242424; border-radius:3px; overflow:hidden; margin-top:12px; }
-.splash-cover .prog i{ display:block; height:100%; width:0; background:var(--amber); animation:load 1.1s ease-out forwards; }
-@keyframes load{ to{ width:100%; } }
-.splash-cover .boot{ font-family:var(--mono); font-size:11px; color:var(--dim); }
+.custom{margin-top:12px;border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:hidden}
+.custom>summary{list-style:none;cursor:pointer;padding:12px 14px;font-size:13px;color:var(--dim);font-family:var(--mono)}
+.custom>summary::-webkit-details-marker{display:none}
+.custom .cbody{padding:0 14px 14px;display:flex;align-items:center;gap:10px}
+.step{display:flex;align-items:center;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.step button{background:var(--panel2);border:0;color:var(--fg);width:40px;height:40px;font-size:20px;cursor:pointer}
+.step input{width:64px;height:40px;background:#0d0c0b;border:0;color:var(--fg);text-align:center;font-size:18px;font-weight:700;font-family:var(--mono)}
+.custom .set{margin-left:auto;background:var(--amber);color:#0a0a0a;border:0;border-radius:10px;padding:10px 16px;font-weight:800;cursor:pointer}
+.warnline{font-size:11px;color:var(--faint);margin:2px 14px 12px;line-height:1.4}
+
+/* confirm progress */
+.progress{margin-top:16px;border:1px dashed var(--line);border-radius:12px;padding:16px;text-align:center}
+.progress .ptxt{font-family:var(--mono);font-size:13px;color:var(--amber-deep)}
+.pbar{height:6px;border-radius:999px;background:var(--line);margin-top:12px;overflow:hidden}
+.pbar>i{display:block;height:100%;width:0;background:var(--amber);transition:width .4s linear}
+
+.foot{margin-top:auto;padding-top:18px;color:var(--faint);font-family:var(--mono);font-size:11px;display:flex;gap:8px;align-items:center}
+
+/* diagnostics */
+[data-view="diag"]{gap:0}
+.diag-h{display:flex;align-items:center;margin-bottom:10px}
+.diag-h .t{font-size:22px;font-weight:800}
+.diag-x{margin-left:auto;background:var(--panel);border:1px solid var(--line);color:var(--fg);border-radius:10px;width:36px;height:34px;font-size:16px;cursor:pointer}
+.diag-lead{color:var(--dim);font-size:14px;line-height:1.5;margin:0 0 14px}
+.diag-card{border:1px solid var(--line);background:#0d0c0b;border-radius:12px;padding:14px;max-height:46vh;overflow:auto}
+#diagText{font-family:var(--mono);font-size:11px;line-height:1.55;white-space:pre-wrap;word-break:break-all;margin:0;color:var(--fg)}
+#diagText .k{color:var(--dim)} #diagText .bad{color:var(--red)} #diagText .ok{color:var(--green)} #diagText .am{color:var(--amber)}
+.btn{width:100%;border:0;border-radius:var(--r);padding:15px;font-size:15px;font-weight:800;font-family:var(--ui);cursor:pointer;margin-top:12px}
+.btn.primary{background:var(--amber);color:#0a0a0a}
+.btn.sec{background:var(--panel);color:var(--fg);border:1px solid var(--line)}
+.shot{color:var(--dim);font-size:13px;line-height:1.5;text-align:center;margin:14px 2px 0}
+.shot b{color:var(--amber)}
+
+/* confirm sheet */
+.sheet-wrap{position:fixed;inset:0;z-index:40;display:flex;align-items:flex-end;justify-content:center;
+  background:rgba(0,0,0,.55);backdrop-filter:blur(3px);animation:fade .2s ease}
+.sheet-wrap[hidden]{display:none}
+.sheet{width:100%;max-width:480px;background:var(--panel);border:1px solid var(--line);border-bottom:0;
+  border-radius:20px 20px 0 0;padding:22px 20px calc(env(safe-area-inset-bottom) + 22px);animation:up .28s cubic-bezier(.2,.9,.3,1)}
+@keyframes up{from{transform:translateY(100%)}to{transform:none}}
+.sheet h3{margin:0 0 6px;font-size:21px;font-weight:800}
+.sheet p{margin:0 0 18px;color:var(--dim);font-size:14px;line-height:1.5}
+.sheet .row{display:flex;gap:10px}
+.sheet .row button{flex:1;border-radius:12px;padding:15px;font-size:16px;font-weight:800;border:0;cursor:pointer;font-family:var(--ui)}
+.sheet .go{background:var(--amber);color:#0a0a0a} .sheet .no{background:var(--panel2);color:var(--fg);border:1px solid var(--line)}
+
+/* celebration */
+.cel{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  background:rgba(8,7,6,.86);backdrop-filter:blur(2px)}
+.cel[hidden]{display:none}
+.cel canvas{position:absolute;inset:0;width:100%;height:100%}
+.celBig{font-family:'Silkscreen',var(--mono);font-size:46px;font-weight:700;letter-spacing:.02em;z-index:2;animation:pop .4s cubic-bezier(.2,1.4,.3,1)}
+.celBig.boost{color:var(--amber)} .celBig.restore{color:var(--fg)}
+.celSub{z-index:2;font-family:var(--mono);font-size:14px;color:var(--dim)}
+@keyframes pop{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
+.flash{position:fixed;inset:0;z-index:49;pointer-events:none;background:var(--amber);opacity:0}
+.flash.go{animation:fl .5s ease}
+@keyframes fl{0%{opacity:.5}100%{opacity:0}}
+
+/* splash */
+#splash{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .5s}
+#splash .mark{font-family:'Silkscreen',var(--mono);font-size:30px;color:var(--amber);font-weight:700;animation:pop .5s ease}
+#splash .boot{font-family:var(--mono);font-size:12px;color:var(--faint)}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
-<div class="app">
+<div id="app">
 
   <!-- ============ CONNECT ============ -->
-  <section class="view" id="view-connect">
-    <div class="big-mark">CANARY</div>
-    <h1 class="lede-xl">Your bike,<br>your rules.</h1>
-    <p class="lede-sub">Switch the Ace between 25 and 35 km/h straight over Bluetooth. Standing still, reversible.</p>
-    <button class="btn primary full" id="connectBtn">Connect to bike</button>
-    <div class="err" id="connErr"></div>
-    <p class="note" id="connNote">iPhone: open this in the <b>Bluefy</b> browser, bike awake &amp; nearby</p>
+  <section class="view" data-view="connect">
+    <div class="brand">CANARY</div>
+    <h1 class="lede">Unlock your Veloretti's<br>real top speed.</h1>
+    <p class="sub" id="connectSub">Wake the bike, keep your phone close, then connect over Bluetooth.</p>
+    <button class="cta" id="connectBtn">Connect to bike</button>
+    <p class="status" id="connectStatus"></p>
+    <button class="ghost" id="toDiag1">diagnostics</button>
   </section>
 
   <!-- ============ MAIN ============ -->
-  <section class="view" id="view-main" hidden>
-    <div class="hdr">
-      <span class="mark">CANARY</span>
-      <span class="pill" id="pill"><span class="d"></span><span id="pillText">OFFLINE</span></span>
-    </div>
-    <div class="spacer"></div>
-    <div class="eyebrow">Current limit</div>
-    <div><span id="heroNum" class="hero-num unknown">—</span><span class="hero-unit" id="heroUnit" hidden>km/h</span></div>
-    <div class="hero-meta" id="heroMeta">reading the motor…</div>
+  <section class="view" data-view="main" hidden>
+    <header class="bar">
+      <span class="brand sm">CANARY</span>
+      <span class="pill" id="pill"><i></i><span id="pillText">—</span></span>
+      <button class="icon" id="soundBtn" title="sound">♪</button>
+      <button class="icon" id="menuBtn" title="diagnostics">⋯</button>
+    </header>
 
-    <div class="rows" id="rows">
-      <div class="row" id="row25" data-t="25">
-        <div class="rn">25</div>
-        <div class="rt"><div class="a">Stock</div><div class="b">road-legal · EU pedelec</div></div>
-        <div class="rmark" id="mark25"></div>
-      </div>
-      <div class="row" id="row35" data-t="35">
-        <div class="rn">35</div>
-        <div class="rt"><div class="a">Boost</div><div class="b">derestricted · ~35 km/h</div></div>
-        <div class="rmark" id="mark35"></div>
-      </div>
-    </div>
-    <div class="spacer"></div>
-    <div class="foot">
-      <button class="link" id="diagLink">something not working? <u>→ what to send me</u></button>
-      <button class="mute" id="muteBtn">♪ on</button>
-    </div>
-    <p class="note" id="mainNote"></p>
+    <div class="banner" id="banner" hidden><span id="bannerText"></span><button id="bannerBtn" hidden>reconnect</button></div>
 
-    <div class="confirm" id="confirm">
-      <div class="q" id="confirmQ">Send 35 km/h to the motor?</div>
-      <div class="cbtns">
-        <button class="btn cancel" id="confirmCancel">✕</button>
-        <button class="btn primary" id="confirmGo">⚡ Confirm · 35 km/h</button>
-      </div>
+    <div class="reading">
+      <div class="rnum"><span id="limitNum" class="unknown">—</span><span class="unit">km/h</span></div>
+      <div class="rmeta" id="readingMeta">connecting…</div>
     </div>
+
+    <div class="selector">
+      <button class="opt" data-target="25">
+        <span class="live-badge">● LIVE</span>
+        <span class="tag">STOCK</span>
+        <span class="big">25<small>km/h</small></span>
+        <span class="desc">Legal e-bike limit. Motor assists to 25.</span>
+      </button>
+      <button class="opt" data-target="35">
+        <span class="live-badge">● LIVE</span>
+        <span class="tag">BOOST</span>
+        <span class="big">35<small>km/h</small></span>
+        <span class="desc">Assist all the way to 35. Your bike, your call.</span>
+      </button>
+    </div>
+
+    <details class="custom">
+      <summary>custom speed (advanced)</summary>
+      <div class="cbody">
+        <div class="step">
+          <button id="cMinus">–</button>
+          <input id="cVal" type="text" inputmode="numeric" value="30" readonly>
+          <button id="cPlus">+</button>
+        </div>
+        <button class="set" id="cSet">set</button>
+      </div>
+      <p class="warnline">25–45 km/h. Above 25 may be road-illegal (NL: speed-pedelec) and can void warranty. Firmware may cap or require a power-cycle.</p>
+    </details>
+
+    <div class="progress" id="progress" hidden>
+      <div class="ptxt" id="progressText">listening…</div>
+      <div class="pbar"><i id="pbarFill"></i></div>
+    </div>
+
+    <footer class="foot"><span id="ver"></span><span>·</span><button class="ghost" id="toDiag2" style="padding:2px">diagnostics</button></footer>
   </section>
 
-  <!-- ============ DIAGNOSTIC ============ -->
-  <section class="view" id="view-diag" hidden>
-    <div class="diag-h">
-      <span class="diag-title">Send me this</span>
-      <button class="diag-x" id="diagClose">✕</button>
-    </div>
-    <p class="diag-lead" id="diagLead">The motor didn't confirm the change. Screenshot this screen (or tap Copy) and send it — it tells me exactly what's blocking the write.</p>
+  <!-- ============ DIAGNOSTICS ============ -->
+  <section class="view" data-view="diag" hidden>
+    <div class="diag-h"><span class="t">Send me this</span><button class="diag-x" id="diagClose">✕</button></div>
+    <p class="diag-lead" id="diagLead">Full picture of what the bike is doing. Screenshot it (or copy) and send it to me.</p>
     <div class="diag-card"><pre id="diagText"></pre></div>
-    <button class="btn primary full" id="diagCopy">📋 copy diagnostics</button>
-    <button class="btn full" id="diagRecheck">↻ re-check limit</button>
+    <button class="btn primary" id="copyBtn">📋 copy diagnostics</button>
+    <button class="btn sec" id="recheckBtn">↻ re-check limit</button>
     <p class="shot"><b>📸 Screenshot this whole screen</b> and send it to me</p>
   </section>
 
 </div>
 
-<!-- celebration -->
-<div id="cel">
-  <canvas id="celCanvas"></canvas>
-  <div class="flash" id="celFlash"></div>
-  <div class="stamp" id="celStamp"><div class="big" id="celBig">BOOST</div><div class="sub" id="celSub">35 km/h engaged</div></div>
+<!-- confirm sheet -->
+<div class="sheet-wrap" id="confirmWrap" hidden>
+  <div class="sheet">
+    <h3 id="confirmTitle">Send 35 km/h?</h3>
+    <p id="confirmBody">The app writes the new limit, then listens up to 18s for the motor to confirm.</p>
+    <div class="row"><button class="no" id="confirmNo">Cancel</button><button class="go" id="confirmGo">Confirm</button></div>
+  </div>
 </div>
 
+<!-- celebration -->
+<div class="cel" id="cel" hidden><canvas id="celCanvas"></canvas><div class="celBig" id="celBig">BOOST</div><div class="celSub" id="celSub"></div></div>
+<div class="flash" id="flash"></div>
+
 <!-- splash -->
-<div class="splash-cover" id="splash">
-  <div class="big-mark" style="font-size:44px">CANARY</div>
-  <div style="font-family:var(--mono);font-size:12px;letter-spacing:3px;color:var(--fg)">VELORETTI · ACE 2</div>
-  <div class="prog"><i></i></div>
-  <div class="boot">booting · linking CAN bridge</div>
-</div>
+<div id="splash"><div class="mark">CANARY</div><div class="boot">linking CAN bridge…</div></div>
 
 <script>
 "use strict";
-/* ================= proven BLE constants ================= */
-const CAN={ SERVICE:"92914b00-bfde-4176-b275-09a9e1e2c691", WRITE:"92914b01-bfde-4176-b275-09a9e1e2c691", NOTIFY:"92914b02-bfde-4176-b275-09a9e1e2c691" };
-const COMO_SERVICE="00001554-1212-efde-1523-785feabcd123";
-const WRITE_ID="05103203";
-const READ_TRIGGERS=["00badfed050080","00badfed030080","00badfed0d0080"];
-const DEFAULT_TAIL="c02bce08";
-const VERSION="Canary 0.5 · 2026-11-10";
-const EMBED=(()=>{ try{ return window.top!==window.self; }catch(_){ return true; } })();  // artifact preview = demo; hosted = real BLE
 
-const $=(id)=>document.getElementById(id);
-let device=null,gatt=null,writeChar=null,currentLimit=null,lastTail=DEFAULT_TAIL;
-let armed=null,armTimer=null,pending=null,watchdog=null,soundOn=true,connected=false;
-let nudgeTimer=null,countdownTimer=null,waitStart=0,lastTarget=null;
-const CONFIRM_WINDOW=16000;   // 02f83203 broadcasts slowly — listen long
-let diag={services:[],writeProps:"",sent:"",readback:"",frames:[],reason:"",step:"",waitSeen:[]};
-const uuidEq=(a,b)=>String(a).toLowerCase()===String(b).toLowerCase();
+/* =========================================================================
+   CONFIG
+   ========================================================================= */
+const CFG={
+  SERVICE:"92914b00-bfde-4176-b275-09a9e1e2c691",
+  WRITE:"92914b01-bfde-4176-b275-09a9e1e2c691",
+  NOTIFY:"92914b02-bfde-4176-b275-09a9e1e2c691",
+  COMO:"00001554-1212-efde-1523-785feabcd123",
+  TRIGGERS:["00badfed050080","00badfed030080","00badfed0d0080"],
+  CONFIRM_MS:18000, NUDGE_MS:3000, STALE_MS:8000, RECHECK_MS:3500,
+  DISCOVERY_TRIES:5, DISCOVERY_GAP:350, RECONNECT_TRIES:5, RECONNECT_MS:2500, SPLASH_MS:1200,
+  STOCK:25, BOOST:35, MIN:25, MAX:45,
+  VERSION:"Canary 0.6 · 2026-11-10"
+};
+// artifact/iframe preview or ?demo => simulated bike; hosted in Bluefy => real BLE
+const IS_DEMO=(()=>{ try{ if(window.top!==window.self) return true; }catch(_){ return true; }
+  return /[?&]demo/.test(location.search); })();
 
-/* ---- helpers ---- */
-const hexToBytes=(h)=>{h=h.replace(/\s+/g,"");const o=new Uint8Array(h.length/2);for(let i=0;i<o.length;i++)o[i]=parseInt(h.substr(i*2,2),16);return o;};
-const bytesToHex=(b)=>Array.from(b).map(x=>x.toString(16).padStart(2,"0")).join("");
-const flip=(h)=>{const p=h.match(/../g)||[];return parseInt(p.reverse().join(""),16)||0;};
-const u16le=(n)=>{n&=0xffff;return [n&0xff,(n>>8)&0xff].map(x=>x.toString(16).padStart(2,"0")).join("");};
-const vibe=(p)=>{try{navigator.vibrate&&navigator.vibrate(p);}catch(_){}};
-const now=()=>new Date().toLocaleTimeString();
-function show(view){["view-connect","view-main","view-diag"].forEach(v=>$(v).hidden=(v!==view));}
+/* =========================================================================
+   PURE CODEC  — unit-tested by canary-codec.test.js (extract between sentinels)
+   No DOM, no globals beyond these constants. KEEP PURE.
+   ========================================================================= */
+/* ==== PURE-CODEC-START ==== */
+const WRITE_ID="05103203";      // tool(0x05) -> drive-unit(0x02) WRITE code 0x3203
+const CONFIG_ID="02f83203";     // drive-unit broadcast of the speed-limit config
+const DEFAULT_TAIL="c02bce08";  // wheelcode(700c) + circumference, generic fallback
+const CFG_MASK=0x1fffffff;      // 29-bit id mask (drop EFF flag if present)
+const CONFIG_ID_NUM=parseInt(CONFIG_ID,16)&CFG_MASK;
 
-/* ---- audio (haptic substitute on iOS) ---- */
+function hexClean(h){ return String(h==null?"":h).toLowerCase().replace(/[^0-9a-f]/g,""); }
+function hexToBytes(h){ h=hexClean(h); const o=new Uint8Array(h.length>>1); for(let i=0;i<o.length;i++) o[i]=parseInt(h.substr(i*2,2),16); return o; }
+function bytesToHex(b){ return Array.from(b,x=>x.toString(16).padStart(2,"0")).join(""); }
+function leToInt(h){ const p=(hexClean(h).match(/../g)||[]); return parseInt(p.reverse().join(""),16)||0; } // little-endian hex pairs -> int
+function intToLe(n){ n=Math.max(0,Math.min(0xffff,Math.round(n))); return [n&0xff,(n>>8)&0xff].map(x=>x.toString(16).padStart(2,"0")).join(""); }
+function uuidEq(a,b){ return String(a).toLowerCase()===String(b).toLowerCase(); }
+function idMatches(id,target){ return (parseInt(hexClean(id),16)>>>0 & CFG_MASK)===(parseInt(hexClean(target),16)>>>0 & CFG_MASK); }
+function encodeSpeedFrame(kmh,tail){ const t=hexClean(tail); return WRITE_ID+intToLe(kmh*100)+(t||DEFAULT_TAIL); }
+function decodeConfig(hex){
+  hex=hexClean(hex); if(hex.length<8) return null;
+  if(!idMatches(hex.slice(0,8),CONFIG_ID)) return null;
+  const p=hex.slice(8); if(p.length<12) return null;
+  return { id:hex.slice(0,8), kmh:Math.round(leToInt(p.slice(0,4))/100), tail:p.slice(4,12), raw:hex };
+}
+function frameId(hex){ hex=hexClean(hex); return hex.length>=8?hex.slice(0,8):""; }
+/* ==== PURE-CODEC-END ==== */
+
+// export for node test harness (no-op in browser)
+if(typeof module!=="undefined"&&module.exports){ module.exports={hexClean,hexToBytes,bytesToHex,leToInt,intToLe,uuidEq,idMatches,encodeSpeedFrame,decodeConfig,frameId,WRITE_ID,CONFIG_ID,DEFAULT_TAIL}; }
+
+/* =========================================================================
+   STATE
+   ========================================================================= */
+const state={
+  phase:"idle",        // idle|scanning|connecting|discovering|live|writing|confirming|reconnecting|offline
+  everConnected:false,
+  showDiag:false,
+  limit:null, limitAt:0, tail:DEFAULT_TAIL,
+  pending:false, target:null, waitStart:0, waitSeen:[], sentFrame:"",
+  reason:"", step:"", writeProps:"", services:[], frames:[], readback:"",
+  sound:true, demo:false, demoForwards:true,
+  reconnTry:0,
+  _nudge:null,_tick:null,_wd:null,_bus:null,_noise:null,_apply:null,_stale:null
+};
+
+/* =========================================================================
+   HELPERS
+   ========================================================================= */
+const $=(s)=>document.querySelector(s);
+const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
+const clock=()=>new Date().toTimeString().slice(0,8);
+function pushFrame(hex){ state.frames.push(clock()+" "+hexClean(hex)); if(state.frames.length>16) state.frames.shift(); }
+
 let actx=null;
-function beep(freqs,dur,type){ if(!soundOn)return; try{
+function beep(freqs,dur,type){ if(!state.sound) return; try{
   actx=actx||new (window.AudioContext||window.webkitAudioContext)();
   freqs.forEach((f,i)=>{ const o=actx.createOscillator(),g=actx.createGain();
     o.type=type||"triangle"; o.frequency.value=f; o.connect(g); g.connect(actx.destination);
     const t=actx.currentTime+i*(dur*0.6); g.gain.setValueAtTime(0.0001,t);
     g.gain.exponentialRampToValueAtTime(0.22,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
-    o.start(t); o.stop(t+dur+0.02); });
+    o.start(t); o.stop(t+dur+0.03); });
 }catch(_){ } }
+function vibe(p){ try{ navigator.vibrate&&navigator.vibrate(p); }catch(_){ } }   // iOS ignores; Android fires
 
-/* ================= decode ================= */
-function feed(hex){
-  if(hex.length>=8){ diag.frames.push(now().split(" ")[0]+" "+hex); if(diag.frames.length>14)diag.frames.shift(); }
-  if(hex.length<8)return;
-  const id=hex.substring(0,8);
-  if(id==="02f83203") motorConfig(id,hex.substring(8));
-}
-function motorConfig(id,p){
-  if(p.length<12)return;
-  const kmh=Math.round(flip(p.substr(0,4))/100);
-  lastTail=p.substr(4,8); diag.readback=p.toUpperCase()+"  (="+kmh+" km/h)";
-  if(pending!==null){ diag.waitSeen.push(now().split(" ")[0]+" → "+kmh+" km/h"); }
-  setLimit(kmh,true);
-  if(pending!==null && kmh===pending){ stopWaiting(); confirmSuccess(pending); }   // the motor confirmed!
-}
-function setLimit(kmh,live){
-  currentLimit=kmh;
-  const n=$("heroNum"); n.classList.remove("unknown"); n.textContent=kmh; n.classList.toggle("boost",kmh>25);
-  $("heroUnit").hidden=false;
-  $("heroMeta").textContent=(live?"◉ live · ":"")+"reported by the controller";
-  $("row25").classList.toggle("live",kmh===25); $("row35").classList.toggle("live",kmh>25);
-  $("mark25").textContent=kmh===25?"● LIVE":""; $("mark35").textContent=kmh>25?"● LIVE":"";
+/* =========================================================================
+   BLE
+   ========================================================================= */
+let device=null, gatt=null, writeChar=null, notifyChar=null, userStop=false;
+
+async function startConnect(){
+  if(state.demo||IS_DEMO) return enterDemo();
+  if(!navigator.bluetooth){
+    state.phase="offline";
+    $("#connectStatus").textContent="This browser has no Bluetooth. On iPhone, open this page in the Bluefy app.";
+    return;
+  }
+  userStop=false; state.reason="";
+  try{
+    setPhase("scanning");
+    device=await navigator.bluetooth.requestDevice({ filters:[{namePrefix:"V-"},{namePrefix:"VELORETTI"}], optionalServices:[CFG.SERVICE,CFG.COMO] });
+    device.addEventListener("gattserverdisconnected",onDisconnect);
+    await openGatt();
+  }catch(e){
+    device=null; setPhase("offline");
+    $("#connectStatus").textContent = (e&&e.name==="NotFoundError") ? "No bike selected — tap connect and pick V-…" : ("Connect failed: "+(e&&e.message||e));
+    if(!(e&&e.name==="NotFoundError")) state.reason="connect threw: "+(e&&e.message||e);
+  }
 }
 
-/* ================= connect ================= */
-// iOS/Bluefy reports UUIDs in UPPERCASE and can expose services a beat late —
-// retry discovery, match case-insensitively, and fall back to a direct lookup.
-async function findCanService(g){
-  for(let attempt=0;attempt<4;attempt++){
-    try{
-      const services=await g.getPrimaryServices();
-      if(services&&services.length) diag.services=services.map(s=>s.uuid);
-      const hit=services&&services.find(s=>uuidEq(s.uuid,CAN.SERVICE));
+async function openGatt(){
+  setPhase("connecting"); state.step="connecting to GATT";
+  gatt=await device.gatt.connect();
+  setPhase("discovering"); state.step="discovering CAN service";
+  const svc=await discoverService(gatt);
+  if(!svc){ state.reason="92914B CAN service did not resolve"; state.step="service not found"; setPhase("offline");
+    $("#connectStatus").textContent="Found the bike but not its CAN service — open diagnostics."; return; }
+  state.step="opening characteristics";
+  writeChar=await getChar(svc,CFG.WRITE);
+  state.writeProps="writeWithoutResponse="+writeChar.properties.writeWithoutResponse+" write="+writeChar.properties.write;
+  notifyChar=await getChar(svc,CFG.NOTIFY);
+  await notifyChar.startNotifications();
+  notifyChar.addEventListener("characteristicvaluechanged",onNotify);
+  state.step="live"; state.reconnTry=0; state.everConnected=true;
+  setPhase("live");
+  nudge();
+}
+
+async function discoverService(g){
+  for(let i=0;i<CFG.DISCOVERY_TRIES;i++){
+    try{ const list=await g.getPrimaryServices();
+      if(list&&list.length) state.services=list.map(s=>s.uuid);
+      const hit=list&&list.find(s=>uuidEq(s.uuid,CFG.SERVICE));   // Bluefy returns UPPERCASE -> case-insensitive
       if(hit) return hit;
     }catch(_){}
-    try{ const direct=await g.getPrimaryService(CAN.SERVICE); if(direct){ if(!diag.services.length)diag.services=[direct.uuid]; return direct; } }catch(_){}
-    await new Promise(r=>setTimeout(r,350));
+    try{ const d=await g.getPrimaryService(CFG.SERVICE); if(d){ if(!state.services.length) state.services=[d.uuid]; return d; } }catch(_){}
+    await sleep(CFG.DISCOVERY_GAP);
   }
   return null;
 }
-async function getChar(service,uuid){
-  try{ return await service.getCharacteristic(uuid); }
-  catch(_){ const cs=await service.getCharacteristics(); const hit=cs.find(c=>uuidEq(c.uuid,uuid)); if(hit)return hit; throw new Error("characteristic "+uuid+" not found on service"); }
+async function getChar(svc,uuid){
+  try{ return await svc.getCharacteristic(uuid); }
+  catch(_){ const cs=await svc.getCharacteristics(); const hit=cs.find(c=>uuidEq(c.uuid,uuid)); if(hit) return hit; throw new Error("characteristic "+uuid+" not found"); }
 }
-async function connect(){
-  $("connErr").textContent=""; diag.reason=""; diag.step="requesting device";
-  if(EMBED || !navigator.bluetooth){
-    enterDemo(); return;
+
+function onDisconnect(){
+  writeChar=null; notifyChar=null;
+  if(userStop){ setPhase("offline"); return; }
+  attemptReconnect();
+}
+async function attemptReconnect(){
+  if(!device){ setPhase("offline"); return; }
+  for(state.reconnTry=1; state.reconnTry<=CFG.RECONNECT_TRIES; state.reconnTry++){
+    if(userStop){ setPhase("offline"); return; }
+    setPhase("reconnecting"); state.step="reconnect "+state.reconnTry+"/"+CFG.RECONNECT_TRIES;
+    try{ await openGatt(); if(state.phase==="live") return; }catch(_){}
+    await sleep(CFG.RECONNECT_MS);
   }
-  try{
-    setPill("wait","SCANNING");
-    device=await navigator.bluetooth.requestDevice({ filters:[{namePrefix:"V-"},{namePrefix:"VELORETTI"}], optionalServices:[CAN.SERVICE,COMO_SERVICE] });
-    device.addEventListener("gattserverdisconnected",onDisc);
-    setPill("wait","LINKING");
-    gatt=await device.gatt.connect();
-    diag.step="connected · discovering CAN service";
-    const can=await findCanService(gatt);
-    if(!can){ $("connErr").textContent="Connected, but the 92914B CAN service didn't resolve — tap 'what to send me'."; show("view-main"); setPill("","NO CAN"); diag.reason="92914B service present but did not resolve"; diag.step="service match failed"; return; }
-    diag.step="CAN service resolved · opening characteristics";
-    writeChar=await getChar(can,CAN.WRITE);
-    diag.writeProps="writeWithoutResponse="+writeChar.properties.writeWithoutResponse+" write="+writeChar.properties.write;
-    const notify=await getChar(can,CAN.NOTIFY);
-    await notify.startNotifications();
-    notify.addEventListener("characteristicvaluechanged",(e)=>feed(bytesToHex(new Uint8Array(e.target.value.buffer))));
-    diag.step="notifications on · sending read triggers";
-    for(const t of READ_TRIGGERS){ await rawWrite(t); await new Promise(r=>setTimeout(r,120)); }
-    connected=true; setPill("on",(device.name||"BIKE").toUpperCase()); diag.step="live";
-    show("view-main"); $("heroMeta").textContent="waiting for the controller…"; $("mainNote").textContent=""; vibe(12);
-  }catch(e){ setPill("","OFFLINE"); diag.reason="connect threw: "+(e.message||e); $("connErr").textContent=e.name==="NotFoundError"?"No bike selected.":"Connect failed: "+(e.message||e); }
+  setPhase("offline"); state.reason="lost connection after "+CFG.RECONNECT_TRIES+" reconnect attempts";
 }
-function onDisc(){ connected=false; writeChar=null; currentLimit=null; disarm(); setPill("","OFFLINE");
-  $("heroNum").className="hero-num unknown"; $("heroNum").textContent="—"; $("heroUnit").hidden=true; $("heroMeta").textContent="disconnected"; show("view-connect"); }
-function setPill(state,text){ const p=$("pill"); p.className="pill"+(state?" "+state:""); $("pillText").textContent=text; }
-async function rawWrite(hex){ if(!writeChar)return false; try{
-  if(writeChar.properties.writeWithoutResponse) await writeChar.writeValueWithoutResponse(hexToBytes(hex));
-  else await writeChar.writeValueWithResponse(hexToBytes(hex)); return true;
-}catch(e){ diag.reason="write threw: "+(e.message||e); return false; } }
+function disconnect(){ userStop=true; try{ gatt&&gatt.connected&&gatt.disconnect(); }catch(_){} setPhase("offline"); }
 
-/* ================= demo mode (preview without a bike) ================= */
-let demo=false;
-function enterDemo(){ demo=true; connected=true; show("view-main"); setPill("on","DEMO"); $("mark25").textContent="● LIVE";
-  setLimit(25,false); $("heroMeta").textContent="demo · tap a limit to feel the animation";
-  $("mainNote").innerHTML='<span class="demotag">PREVIEW</span> &nbsp;no bike connected — animations are simulated'; }
-
-/* ================= arm → confirm → send ================= */
-$("row25").onclick=()=>arm(25); $("row35").onclick=()=>arm(35);
-function arm(t){
-  if(!connected){ connect(); return; }
-  if(currentLimit===t){ flashMeta(t===25?"already at stock 25":"already boosted to 35"); return; }
-  armed=t; $("confirmQ").textContent=(t===35?"Engage boost — send 35 km/h?":"Back to stock — send 25 km/h?");
-  $("confirmGo").textContent=(t===35?"⚡ Confirm · 35 km/h":"↓ Confirm · 25 km/h");
-  $("confirm").classList.add("show"); vibe(8);
-  clearTimeout(armTimer); armTimer=setTimeout(disarm,6000);
+async function writeFrame(hex){
+  if(!writeChar) throw new Error("no write channel");
+  const bytes=hexToBytes(hex);
+  if(writeChar.properties.writeWithoutResponse) await writeChar.writeValueWithoutResponse(bytes);
+  else await writeChar.writeValueWithResponse(bytes);
 }
-function disarm(){ armed=null; clearTimeout(armTimer); $("confirm").classList.remove("show"); }
-$("confirmCancel").onclick=disarm;
-$("confirmGo").onclick=()=>{ const t=armed; disarm(); if(t) send(t); };
-function flashMeta(m){ const el=$("heroMeta"); const o=el.textContent; el.textContent=m; setTimeout(()=>{ if(currentLimit!=null)setLimit(currentLimit,!demo); },1400); }
+async function nudge(){ if(!writeChar) return; try{ for(const t of CFG.TRIGGERS){ await writeFrame(t); await sleep(70);} }catch(_){ } }
 
-async function send(t){
-  const frame=WRITE_ID+u16le(t*100)+lastTail; diag.sent=frame.toUpperCase()+"  (→"+t+" km/h)"; diag.reason=""; diag.waitSeen=[]; lastTarget=t;
-  if(demo){ setTimeout(()=>confirmSuccess(t),280); return; }
-  pending=t; setPill("wait","WRITING");
-  const ok=await rawWrite(frame);
-  if(!ok){ pending=null; return failDiag("the write itself was rejected by the bridge"); }
-  // 02f83203 broadcasts only occasionally — listen LONG, nudge a re-report, show it live
-  stopWaiting(); waitStart=Date.now();
-  nudgeReread();
-  nudgeTimer=setInterval(nudgeReread,3000);
-  countdownTimer=setInterval(()=>{ if(pending===null)return; const s=Math.max(0,Math.round((CONFIRM_WINDOW-(Date.now()-waitStart))/1000));
-    $("heroMeta").textContent="sent "+t+" · listening "+s+"s · "+diag.waitSeen.length+" status frame"+(diag.waitSeen.length===1?"":"s"); },400);
-  watchdog=setTimeout(()=>{ if(pending===null)return; pending=null; stopWaiting();
-    const seen=diag.waitSeen.length;
-    failDiag(seen? ("write accepted, but across "+seen+" status frame"+(seen===1?"":"s")+" in 16s the controller kept reporting "+(currentLimit!=null?currentLimit:"?")+" km/h — the bridge likely isn't relaying the write")
-                 : "write accepted, but the controller sent NO 02f83203 status frame in 16s — can't confirm either way (status broadcast is slow); power-cycle the bike and tap re-check"); },CONFIRM_WINDOW);
-  $("heroMeta").textContent="sent · listening for the motor to re-report…";
+/* =========================================================================
+   DECODE / FEED
+   ========================================================================= */
+function onNotify(e){ try{ feed(bytesToHex(new Uint8Array(e.target.value.buffer))); }catch(_){ } }
+function feed(hex){
+  pushFrame(hex);
+  const cfg=decodeConfig(hex);
+  if(cfg) onConfig(cfg); else render();
 }
-function stopWaiting(){ clearTimeout(watchdog); clearInterval(nudgeTimer); clearInterval(countdownTimer); nudgeTimer=null; countdownTimer=null; }
-async function nudgeReread(){ if(!writeChar)return; try{ for(const t of READ_TRIGGERS){ await rawWrite(t); await new Promise(r=>setTimeout(r,80)); } }catch(_){ } }
-function confirmSuccess(t){ stopWaiting(); pending=null; if(connected&&!demo)setPill("on",(device&&device.name||"BIKE").toUpperCase());
-  celebrate(t===35?"boost":"restore",t); }
-function failDiag(reason){ diag.reason=reason; stopWaiting(); pending=null; if(!demo)setPill("on",(device&&device.name||"BIKE").toUpperCase());
-  buildDiag(); show("view-diag"); vibe([0,60,40,60]); beep([180,150],0.18,"sawtooth"); }
-// re-check after a power-cycle: re-read the limit; if it now matches the target, celebrate
+function onConfig(cfg){
+  state.limit=cfg.kmh; state.limitAt=Date.now(); state.tail=cfg.tail; state.readback=cfg.raw.toUpperCase();
+  if(state.pending){
+    state.waitSeen.push(clock()+" → "+cfg.kmh);
+    if(cfg.kmh===state.target) return confirmSuccess(state.target);
+  }
+  render();
+}
+
+/* =========================================================================
+   BOOST SELECTION -> CONFIRM -> SEND -> CONFIRM WINDOW
+   ========================================================================= */
+function chooseTarget(t){
+  t=parseInt(t,10); if(!(t>=CFG.MIN&&t<=CFG.MAX)) return;
+  if(state.phase!=="live"&&!state.demo){ startConnect(); return; }
+  if(state.limit===t){ flashMeta(t===CFG.STOCK?"already at stock "+t:"already set to "+t); return; }
+  state.target=t;
+  $("#confirmTitle").textContent=(t>CFG.STOCK?"Engage boost — send "+t+" km/h?":"Back to stock — send "+t+" km/h?");
+  $("#confirmBody").textContent="The app writes the new limit, then listens up to "+(CFG.CONFIRM_MS/1000)+"s for the motor to confirm.";
+  $("#confirmWrap").hidden=false; vibe(8);
+}
+function closeConfirm(){ $("#confirmWrap").hidden=true; }
+async function sendTarget(t){
+  state.sentFrame=encodeSpeedFrame(t,state.tail); state.waitSeen=[]; state.reason=""; state.target=t;
+  if(state.demo){ setPhase("writing"); render(); startConfirmWindow(t);
+    if(state.demoForwards){ clearTimeout(state._apply); state._apply=setTimeout(()=>{ state.limit=t; },4000+Math.random()*4000); }
+    return; }
+  setPhase("writing"); render();
+  try{ await writeFrame(state.sentFrame); }
+  catch(e){ return failDiag("the write itself was rejected by the bridge: "+(e&&e.message||e)); }
+  startConfirmWindow(t);
+}
+function startConfirmWindow(t){
+  stopConfirmWindow(); state.pending=true; state.waitStart=Date.now(); setPhase("confirming"); render();
+  nudge();
+  state._nudge=setInterval(nudge,CFG.NUDGE_MS);
+  state._tick=setInterval(()=>{ if(state.pending) render(); },400);
+  state._wd=setTimeout(()=>{
+    if(!state.pending) return;
+    stopConfirmWindow(); state.pending=false;
+    const n=state.waitSeen.length, secs=CFG.CONFIRM_MS/1000;
+    if(n===0) failDiag("no 02f83203 status frame arrived in "+secs+"s — can't confirm either way (status broadcast is slow). Power-cycle the bike and tap re-check.");
+    else failDiag("write accepted, but across "+n+" status frame"+(n===1?"":"s")+" in "+secs+"s the controller kept reporting "+state.limit+" km/h — the BLE bridge likely isn't relaying the write.");
+  },CFG.CONFIRM_MS);
+}
+function stopConfirmWindow(){ clearInterval(state._nudge); clearInterval(state._tick); clearTimeout(state._wd); state._nudge=state._tick=state._wd=null; }
+
+function confirmSuccess(t){
+  stopConfirmWindow(); clearTimeout(state._apply); state.pending=false;
+  state.showDiag=false; setPhase("live");
+  celebrate(t>CFG.STOCK?"boost":"restore",t);
+}
+function failDiag(reason){
+  stopConfirmWindow(); state.pending=false; state.reason=reason;
+  if(state.phase!=="offline") state.phase="live";
+  buildDiag(); state.showDiag=true; render();
+  vibe([0,60,40,60]); beep([180,150],0.18,"sawtooth");
+}
+
 async function recheck(){
-  if(demo||!connected||!writeChar){ return; }
-  const btn=$("diagRecheck"); btn.textContent="re-reading…"; diag.waitSeen=[]; pending=lastTarget;
-  await nudgeReread();
-  setTimeout(()=>{ pending=null;
-    if(lastTarget!=null && currentLimit===lastTarget){ show("view-main"); confirmSuccess(lastTarget); }
-    else { diag.reason="after re-check the controller reports "+(currentLimit!=null?currentLimit:"?")+" km/h"+(diag.waitSeen.length?"":" (still no fresh status frame)"); buildDiag(); }
+  const btn=$("#recheckBtn");
+  if(!state.demo&&!writeChar){ btn.textContent="not connected"; setTimeout(()=>btn.textContent="↻ re-check limit",1400); return; }
+  btn.textContent="re-reading…"; state.waitSeen=[]; state.pending=true;
+  await nudge();
+  setTimeout(()=>{
+    state.pending=false;
+    if(state.target!=null && state.limit===state.target){ state.showDiag=false; confirmSuccess(state.target); }
+    else { state.reason="after re-check the controller reports "+(state.limit==null?"?":state.limit)+" km/h"+(state.waitSeen.length?"":" (no fresh status frame yet)"); buildDiag(); render(); }
     btn.textContent="↻ re-check limit";
-  },3000);
+  },CFG.RECHECK_MS);
 }
 
-/* ================= celebration ================= */
-const cv=$("celCanvas"),ctx=cv.getContext("2d"); let parts=[],raf=null,reduce=matchMedia("(prefers-reduced-motion:reduce)").matches;
-function resize(){ cv.width=innerWidth*devicePixelRatio; cv.height=innerHeight*devicePixelRatio; }
-function celebrate(kind,target){
-  // number morph
-  morphHero(currentLimit!=null?currentLimit:(kind==="boost"?25:35),target);
-  const stamp=$("celStamp");
-  $("celBig").textContent=kind==="boost"?"BOOST":"STOCK";
-  $("celSub").textContent=kind==="boost"?"35 km/h engaged":"25 km/h · restored";
-  stamp.className="stamp "+kind;
-  $("cel").classList.add("show");
-  if(kind==="boost"){ vibe([0,35,25,35,25,120]); beep([523,659,784,1046],0.16,"triangle"); $("celFlash").className="flash go"; }
-  else { vibe([0,22,30,45]); beep([440,330],0.2,"sine"); $("celFlash").className="flash"; }
-  // stamp
-  requestAnimationFrame(()=>{ stamp.classList.add("show"); });
-  if(!reduce){ runParticles(kind); }
-  const dur=kind==="boost"?1700:1450;
-  setTimeout(()=>{ endCelebrate(target); }, dur);
+/* =========================================================================
+   DEMO / SIMULATOR  (same send+confirm code paths; fake CAN bus)
+   ========================================================================= */
+function enterDemo(){
+  state.demo=true; state.everConnected=true; state.limit=CFG.STOCK; state.limitAt=Date.now(); state.tail=DEFAULT_TAIL;
+  state.demoForwards=!/[?&]nofwd/.test(location.search);  // ?nofwd simulates a bridge that won't relay
+  setPhase("live"); render();
+  clearInterval(state._bus); state._bus=setInterval(()=>{ feed(encodeConfigDemo(state.limit,state.tail)); },5500);
+  clearInterval(state._noise); state._noise=setInterval(()=>{ pushFrame("02f8320401"); pushFrame("02ff120300"); if(!state.pending) render(); },1700);
 }
-function endCelebrate(target){
-  $("cel").classList.remove("show"); $("celStamp").className="stamp"; $("celFlash").className="flash";
-  if(raf)cancelAnimationFrame(raf); raf=null; parts=[];
-  setLimit(target,!demo);
-  $("heroMeta").textContent=demo?"demo · reported by the controller":"◉ live · reported by the controller";
-}
-function morphHero(from,to){ const n=$("heroNum"); const t0=performance.now(); const d=900; n.classList.toggle("boost",to>25);
-  function step(t){ const k=Math.min(1,(t-t0)/d); const e=1-Math.pow(1-k,3); n.textContent=Math.round(from+(to-from)*e); if(k<1)requestAnimationFrame(step); }
-  requestAnimationFrame(step);
-}
-function runParticles(kind){
-  resize(); parts=[]; const dpr=devicePixelRatio, W=cv.width, H=cv.height, cx=W/2, cy=H*0.54;
-  if(kind==="boost"){
-    for(let i=0;i<90;i++){ parts.push({ x:cx+(Math.random()-0.5)*W*0.5, y:cy+H*0.1+Math.random()*H*0.3,
-      vx:(Math.random()-0.5)*2*dpr, vy:-(4+Math.random()*9)*dpr, life:1, sz:(2+Math.random()*3)*dpr, chev:Math.random()<0.3 }); }
-  }else{
-    for(let i=0;i<60;i++){ const a=Math.random()*Math.PI*2, r=(Math.max(W,H)*0.45); parts.push({ x:cx+Math.cos(a)*r, y:cy+Math.sin(a)*r,
-      vx:-Math.cos(a)*(2+Math.random()*3)*dpr, vy:-Math.sin(a)*(2+Math.random()*3)*dpr, life:1, sz:(1.5+Math.random()*2)*dpr, chev:false }); }
-  }
-  const t0=performance.now();
-  function frame(t){ const dt=Math.min(2,(t-t0)/16); ctx.clearRect(0,0,W,H);
-    parts.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; if(kind==="boost"){ p.vy+=0.12*dpr; } p.life-=0.014;
-      ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle="#ffcc00";
-      if(p.chev){ ctx.strokeStyle="#ffcc00"; ctx.lineWidth=2*dpr; ctx.beginPath(); ctx.moveTo(p.x-5*dpr,p.y+5*dpr); ctx.lineTo(p.x,p.y-4*dpr); ctx.lineTo(p.x+5*dpr,p.y+5*dpr); ctx.stroke(); }
-      else { ctx.beginPath(); ctx.arc(p.x,p.y,p.sz,0,7); ctx.fill(); }
-      if(kind==="boost"){ ctx.globalAlpha=Math.max(0,p.life)*0.4; ctx.fillRect(p.x-p.sz/2,p.y,p.sz,14*dpr); } // speed streak
-    });
-    ctx.globalAlpha=1; parts=parts.filter(p=>p.life>0);
-    if(parts.length){ raf=requestAnimationFrame(frame); }
-  }
-  raf=requestAnimationFrame(frame);
-}
-addEventListener("resize",()=>{ if($("cel").classList.contains("show"))resize(); });
+function encodeConfigDemo(kmh,tail){ return CONFIG_ID+intToLe(kmh*100)+hexClean(tail||DEFAULT_TAIL); }
 
-/* ================= diagnostics ================= */
+/* =========================================================================
+   CELEBRATION
+   ========================================================================= */
+const cv=$("#celCanvas"); let cx=cv.getContext("2d"), parts=[], raf=null, dpr=Math.min(2,window.devicePixelRatio||1);
+const reduceMotion=matchMedia("(prefers-reduced-motion:reduce)").matches;
+function sizeCanvas(){ cv.width=innerWidth*dpr; cv.height=innerHeight*dpr; }
+function celebrate(kind,t){
+  $("#celBig").textContent=kind==="boost"?"BOOST":"STOCK"; $("#celBig").className="celBig "+kind;
+  $("#celSub").textContent=kind==="boost"?(t+" km/h engaged"):(t+" km/h · restored");
+  $("#cel").hidden=false;
+  if(kind==="boost"){ $("#flash").className="flash go"; vibe([0,35,25,35,25,120]); beep([523,659,784,1046],0.16,"triangle"); }
+  else { $("#flash").className="flash"; vibe([0,22,30,45]); beep([466,349],0.2,"sine"); }
+  if(!reduceMotion){ sizeCanvas(); burst(kind); }
+  setTimeout(()=>{ $("#cel").hidden=true; if(raf)cancelAnimationFrame(raf); parts=[]; render(); }, kind==="boost"?1750:1450);
+}
+function burst(kind){
+  const cxp=cv.width/2, cyp=cv.height/2, N=kind==="boost"?90:55; parts=[];
+  for(let i=0;i<N;i++){ const a=Math.random()*Math.PI*2, sp=(kind==="boost"?5:3)*(0.4+Math.random())*dpr;
+    parts.push({x:cxp,y:cyp,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-(kind==="boost"?2:0),sz:(1.5+Math.random()*2.5)*dpr,life:1}); }
+  (function frame(){ cx.clearRect(0,0,cv.width,cv.height);
+    parts.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.vy+=0.12*dpr; p.life-=0.016;
+      cx.globalAlpha=Math.max(0,p.life); cx.fillStyle="#ffc400"; cx.beginPath(); cx.arc(p.x,p.y,p.sz,0,7); cx.fill();
+      if(kind==="boost"){ cx.globalAlpha=Math.max(0,p.life)*0.35; cx.fillRect(p.x-p.sz/2,p.y,p.sz,12*dpr); } });
+    cx.globalAlpha=1; parts=parts.filter(p=>p.life>0);
+    if(parts.length) raf=requestAnimationFrame(frame);
+  })();
+}
+
+/* =========================================================================
+   DIAGNOSTICS
+   ========================================================================= */
 function buildDiag(){
   const L=[];
   L.push("CANARY · DIAGNOSTIC");
   L.push("time   "+new Date().toISOString());
-  L.push("build  "+VERSION);
+  L.push("build  "+CFG.VERSION+(state.demo?"  (DEMO)":""));
   L.push("");
-  L.push("<span class='bad'>PROBLEM: "+(diag.reason||"motor did not confirm")+"</span>");
+  L.push("<span class='bad'>PROBLEM: "+(state.reason||"motor did not confirm the change")+"</span>");
   L.push("");
-  L.push("<span class='k'>bike</span>    "+((device&&device.name)||(demo?"(demo — no bike)":"?")));
-  L.push("<span class='k'>state</span>   "+(connected?"connected":"disconnected"));
-  L.push("<span class='k'>reached</span> "+(diag.step||"(not started)"));
-  L.push("<span class='k'>write</span>   "+(diag.writeProps||"(char not opened)"));
-  L.push("<span class='k'>sent</span>    "+(diag.sent||"(nothing sent)"));
-  L.push("<span class='k'>readback</span> last 02f83203 = "+(diag.readback||"(none received)"));
-  L.push("<span class='k'>during wait</span> "+(diag.waitSeen.length?diag.waitSeen.length+" status frame(s): "+diag.waitSeen.join(", "):"no 02f83203 arrived while waiting"));
+  L.push("<span class='k'>bike</span>     "+((device&&device.name)||(state.demo?"(demo — no bike)":"?")));
+  L.push("<span class='k'>state</span>    "+state.phase);
+  L.push("<span class='k'>reached</span>  "+(state.step||"(not started)"));
+  L.push("<span class='k'>write</span>    "+(state.writeProps||"(char not opened)"));
+  L.push("<span class='k'>sent</span>     "+(state.sentFrame?state.sentFrame.toUpperCase()+"  (→"+state.target+" km/h)":"(nothing sent)"));
+  L.push("<span class='k'>readback</span> last 02f83203 = "+(state.readback||"(none received)")+(state.limit!=null?"  (="+state.limit+" km/h)":""));
+  L.push("<span class='k'>wait</span>     "+(state.waitSeen.length?state.waitSeen.length+" status frame(s): "+state.waitSeen.join(", "):"no 02f83203 arrived during the wait"));
   L.push("");
   L.push("<span class='k'>services</span>");
-  (diag.services.length?diag.services:["(none captured)"]).forEach(s=>L.push("  "+s));
+  (state.services.length?state.services:["(none captured)"]).forEach(s=>L.push("  "+s));
   L.push("");
   L.push("<span class='k'>recent raw CAN frames</span>");
-  (diag.frames.length?diag.frames:["(none received — the bike never notified)"]).forEach(f=>L.push("  "+f));
-  $("diagText").innerHTML=L.join("\n");
-  $("diagLead").textContent = diag.reason.includes("NO 02f83203")||diag.reason.includes("no fresh")
-    ? "Couldn't confirm — the bike's status broadcast is slow. POWER-CYCLE the bike (off, wait 5s, on), reconnect, then tap re-check. If it reads 35 after that, it worked."
-    : diag.reason.includes("relaying")||diag.reason.includes("forward")
-    ? "The write was accepted but the controller kept reporting the old limit — most likely the BLE bridge doesn't relay motor writes. Screenshot this and send it; also try a power-cycle + re-check once."
-    : "Something blocked the change. Screenshot this screen (or tap Copy) and send it to me.";
+  (state.frames.length?state.frames:["(none received)"]).forEach(f=>L.push("  "+f));
+  $("#diagText").innerHTML=L.join("\n");
+  const r=state.reason||"";
+  $("#diagLead").textContent =
+    /no 02f83203|slow|no fresh/.test(r) ? "Couldn't confirm — the bike's status broadcast is slow. POWER-CYCLE the bike (off, 5s, on), reconnect, then tap re-check. If it reads the new limit after that, it worked."
+    : /relaying|not relay|forward/.test(r) ? "The write was accepted but the controller kept the old limit — most likely the BLE bridge doesn't relay motor writes. Screenshot this and send it; also try one power-cycle + re-check."
+    : "Full picture of what the bike is doing. Screenshot it (or copy) and send it to me.";
 }
-function diagText(){ return $("diagText").textContent; }
-$("diagLink").onclick=()=>{ buildDiag(); show("view-diag"); };
-$("diagClose").onclick=()=>show("view-main");
-$("diagRecheck").onclick=recheck;
-$("diagCopy").onclick=async()=>{ try{ await navigator.clipboard.writeText(diagText()); $("diagCopy").textContent="✓ copied"; setTimeout(()=>$("diagCopy").textContent="copy diagnostics",1400);}catch(_){ $("diagCopy").textContent="select & copy manually"; } };
+function diagPlain(){ return $("#diagText").textContent; }
 
-/* ================= boot ================= */
-$("connectBtn").onclick=connect;
-$("muteBtn").onclick=()=>{ soundOn=!soundOn; $("muteBtn").textContent=soundOn?"♪ on":"♪ off"; if(soundOn)beep([660],0.08); };
-if(EMBED){ $("connectBtn").textContent="▶ Enter preview"; $("connNote").innerHTML='<b>Preview mode</b> — tap to feel the animations. The real version talks to your bike once it’s hosted and opened in Bluefy.'; }
-setTimeout(()=>{ const s=$("splash"); s.style.opacity="0"; setTimeout(()=>s.remove(),500); },1300);
+/* =========================================================================
+   RENDER  (single source of truth for the DOM)
+   ========================================================================= */
+function setPhase(p){ state.phase=p; render(); }
+function flashMeta(msg){ const el=$("#readingMeta"); el.textContent=msg; setTimeout(render,1400); }
+
+function render(){
+  // which view
+  const view = state.showDiag ? "diag" : (state.everConnected ? "main" : "connect");
+  document.querySelectorAll(".view").forEach(v=>{ v.hidden = v.dataset.view!==view; });
+
+  // connect screen status
+  if(view==="connect"){
+    const busy={scanning:"scanning for V-… ",connecting:"connecting… ",discovering:"finding CAN bridge… "}[state.phase];
+    if(busy) $("#connectStatus").textContent=busy;
+    $("#connectBtn").textContent = IS_DEMO ? "▶ Enter preview" : "Connect to bike";
+    if(IS_DEMO) $("#connectSub").textContent="Preview mode — tap to feel the screens and animations. The real version talks to your bike in Bluefy.";
+  }
+
+  // pill
+  const pill=$("#pill"), pt=$("#pillText");
+  let cls="", txt="";
+  if(state.phase==="live"){ cls="live"; txt=(device&&device.name)?device.name:(state.demo?"DEMO":"LIVE"); }
+  else if(state.phase==="offline"){ cls="off"; txt="OFFLINE"; }
+  else if(state.phase==="reconnecting"){ cls="busy"; txt="RECONNECT "+state.reconnTry+"/"+CFG.RECONNECT_TRIES; }
+  else if(state.phase==="writing"||state.phase==="confirming"){ cls="busy"; txt="WRITING"; }
+  else { cls="busy"; txt=state.phase.toUpperCase(); }
+  pill.className="pill "+cls; pt.textContent=txt;
+
+  // banner (reconnect / offline)
+  const banner=$("#banner"), bbtn=$("#bannerBtn");
+  if(state.phase==="reconnecting"){ banner.hidden=false; $("#bannerText").textContent="Connection dropped — reconnecting ("+state.reconnTry+"/"+CFG.RECONNECT_TRIES+")…"; bbtn.hidden=true; }
+  else if(state.phase==="offline"&&state.everConnected){ banner.hidden=false; $("#bannerText").textContent="Disconnected."; bbtn.hidden=false; }
+  else banner.hidden=true;
+
+  // reading
+  const num=$("#limitNum");
+  if(state.limit==null){ num.textContent="—"; num.className="unknown"; }
+  else { num.textContent=state.limit; num.className=state.limit>CFG.STOCK?"boost":""; }
+  const meta=$("#readingMeta");
+  if(state.pending){ meta.className="rmeta"; /* handled below in progress */ }
+  else if(state.limit==null){ meta.className="rmeta"; meta.textContent = state.phase==="live"?"reading…":"connecting…"; }
+  else{ const age=Math.round((Date.now()-state.limitAt)/1000);
+    if(age*1000<CFG.STALE_MS){ meta.className="rmeta"; meta.innerHTML="<span class='dot'>◉</span> live · updated "+age+"s ago · reported by the controller"; }
+    else{ meta.className="rmeta stale"; meta.textContent="⚠ stale ("+age+"s) · re-reading…"; } }
+
+  // selector live badges
+  document.querySelectorAll(".opt").forEach(o=>{ const t=parseInt(o.dataset.target,10); o.classList.toggle("live", state.limit===t); });
+
+  // progress (confirm window)
+  const prog=$("#progress");
+  if(state.pending && (state.phase==="confirming"||state.phase==="writing")){
+    prog.hidden=false;
+    const elapsed=Date.now()-state.waitStart, left=Math.max(0,Math.round((CFG.CONFIRM_MS-elapsed)/1000));
+    $("#progressText").textContent="sent "+state.target+" · listening "+left+"s · "+state.waitSeen.length+" status frame"+(state.waitSeen.length===1?"":"s");
+    $("#pbarFill").style.width=Math.min(100,(elapsed/CFG.CONFIRM_MS)*100)+"%";
+    meta.textContent="";
+  } else prog.hidden=true;
+
+  // sound + version
+  $("#soundBtn").textContent=state.sound?"♪":"♪̷";
+  $("#ver").textContent=CFG.VERSION;
+}
+
+// stale auto-nudge
+setInterval(()=>{ if(state.phase==="live"&&!state.pending&&state.limit!=null&&(Date.now()-state.limitAt)>CFG.STALE_MS){ nudge(); } },3000);
+
+/* =========================================================================
+   EVENTS / BOOT
+   ========================================================================= */
+$("#connectBtn").onclick=startConnect;
+$("#toDiag1").onclick=()=>{ buildDiag(); state.showDiag=true; render(); };
+$("#toDiag2").onclick=()=>{ buildDiag(); state.showDiag=true; render(); };
+$("#menuBtn").onclick=()=>{ buildDiag(); state.showDiag=true; render(); };
+$("#diagClose").onclick=()=>{ state.showDiag=false; render(); };
+$("#recheckBtn").onclick=recheck;
+$("#copyBtn").onclick=async()=>{ try{ await navigator.clipboard.writeText(diagPlain()); $("#copyBtn").textContent="✓ copied"; setTimeout(()=>$("#copyBtn").textContent="📋 copy diagnostics",1400);}catch(_){ $("#copyBtn").textContent="select the text above & copy"; } };
+$("#soundBtn").onclick=()=>{ state.sound=!state.sound; if(state.sound) beep([660],0.08); render(); };
+
+document.querySelectorAll(".opt").forEach(o=> o.onclick=()=>chooseTarget(o.dataset.target));
+$("#confirmNo").onclick=closeConfirm;
+$("#confirmGo").onclick=()=>{ const t=state.target; closeConfirm(); if(t!=null) sendTarget(t); };
+
+// custom stepper
+function clampC(v){ return Math.max(CFG.MIN,Math.min(CFG.MAX,v)); }
+$("#cMinus").onclick=()=>{ const v=clampC(parseInt($("#cVal").value,10)-1); $("#cVal").value=v; };
+$("#cPlus").onclick=()=>{ const v=clampC(parseInt($("#cVal").value,10)+1); $("#cVal").value=v; };
+$("#cSet").onclick=()=>chooseTarget($("#cVal").value);
+
+$("#bannerBtn").onclick=startConnect;
+
+addEventListener("resize",()=>{ if(!$("#cel").hidden) sizeCanvas(); });
+
+// boot
+render();
+if(IS_DEMO) enterDemo();
+setTimeout(()=>{ const s=$("#splash"); s.style.opacity="0"; setTimeout(()=>s.remove(),500); },CFG.SPLASH_MS);
 </script>
 </body>
 </html>
