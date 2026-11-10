@@ -186,6 +186,7 @@ body{ margin:0; background:var(--bg); color:var(--fg); font-family:var(--sans); 
     <p class="diag-lead" id="diagLead">The motor didn't confirm the change. Screenshot this screen (or tap Copy) and send it — it tells me exactly what's blocking the write.</p>
     <div class="diag-card"><pre id="diagText"></pre></div>
     <button class="btn primary full" id="diagCopy">📋 copy diagnostics</button>
+    <button class="btn full" id="diagRecheck">↻ re-check limit</button>
     <p class="shot"><b>📸 Screenshot this whole screen</b> and send it to me</p>
   </section>
 
@@ -214,13 +215,15 @@ const COMO_SERVICE="00001554-1212-efde-1523-785feabcd123";
 const WRITE_ID="05103203";
 const READ_TRIGGERS=["00badfed050080","00badfed030080","00badfed0d0080"];
 const DEFAULT_TAIL="c02bce08";
-const VERSION="Canary 0.4 · 2026-11-09";
+const VERSION="Canary 0.5 · 2026-11-10";
 const EMBED=(()=>{ try{ return window.top!==window.self; }catch(_){ return true; } })();  // artifact preview = demo; hosted = real BLE
 
 const $=(id)=>document.getElementById(id);
 let device=null,gatt=null,writeChar=null,currentLimit=null,lastTail=DEFAULT_TAIL;
 let armed=null,armTimer=null,pending=null,watchdog=null,soundOn=true,connected=false;
-let diag={services:[],writeProps:"",sent:"",readback:"",frames:[],reason:"",step:""};
+let nudgeTimer=null,countdownTimer=null,waitStart=0,lastTarget=null;
+const CONFIRM_WINDOW=16000;   // 02f83203 broadcasts slowly — listen long
+let diag={services:[],writeProps:"",sent:"",readback:"",frames:[],reason:"",step:"",waitSeen:[]};
 const uuidEq=(a,b)=>String(a).toLowerCase()===String(b).toLowerCase();
 
 /* ---- helpers ---- */
@@ -254,8 +257,9 @@ function motorConfig(id,p){
   if(p.length<12)return;
   const kmh=Math.round(flip(p.substr(0,4))/100);
   lastTail=p.substr(4,8); diag.readback=p.toUpperCase()+"  (="+kmh+" km/h)";
+  if(pending!==null){ diag.waitSeen.push(now().split(" ")[0]+" → "+kmh+" km/h"); }
   setLimit(kmh,true);
-  if(pending!==null && kmh===pending){ confirmSuccess(pending); }   // the motor confirmed!
+  if(pending!==null && kmh===pending){ stopWaiting(); confirmSuccess(pending); }   // the motor confirmed!
 }
 function setLimit(kmh,live){
   currentLimit=kmh;
@@ -342,19 +346,40 @@ $("confirmGo").onclick=()=>{ const t=armed; disarm(); if(t) send(t); };
 function flashMeta(m){ const el=$("heroMeta"); const o=el.textContent; el.textContent=m; setTimeout(()=>{ if(currentLimit!=null)setLimit(currentLimit,!demo); },1400); }
 
 async function send(t){
-  const frame=WRITE_ID+u16le(t*100)+lastTail; diag.sent=frame.toUpperCase()+"  (→"+t+" km/h)"; diag.reason="";
+  const frame=WRITE_ID+u16le(t*100)+lastTail; diag.sent=frame.toUpperCase()+"  (→"+t+" km/h)"; diag.reason=""; diag.waitSeen=[]; lastTarget=t;
   if(demo){ setTimeout(()=>confirmSuccess(t),280); return; }
   pending=t; setPill("wait","WRITING");
   const ok=await rawWrite(frame);
   if(!ok){ pending=null; return failDiag("the write itself was rejected by the bridge"); }
-  clearTimeout(watchdog);
-  watchdog=setTimeout(()=>{ if(pending!==null){ pending=null; failDiag("the write went out, but the motor never broadcast the new limit — the BLE bridge may not forward motor writes"); } },5500);
-  $("heroMeta").textContent="sent · waiting for the motor to confirm…";
+  // 02f83203 broadcasts only occasionally — listen LONG, nudge a re-report, show it live
+  stopWaiting(); waitStart=Date.now();
+  nudgeReread();
+  nudgeTimer=setInterval(nudgeReread,3000);
+  countdownTimer=setInterval(()=>{ if(pending===null)return; const s=Math.max(0,Math.round((CONFIRM_WINDOW-(Date.now()-waitStart))/1000));
+    $("heroMeta").textContent="sent "+t+" · listening "+s+"s · "+diag.waitSeen.length+" status frame"+(diag.waitSeen.length===1?"":"s"); },400);
+  watchdog=setTimeout(()=>{ if(pending===null)return; pending=null; stopWaiting();
+    const seen=diag.waitSeen.length;
+    failDiag(seen? ("write accepted, but across "+seen+" status frame"+(seen===1?"":"s")+" in 16s the controller kept reporting "+(currentLimit!=null?currentLimit:"?")+" km/h — the bridge likely isn't relaying the write")
+                 : "write accepted, but the controller sent NO 02f83203 status frame in 16s — can't confirm either way (status broadcast is slow); power-cycle the bike and tap re-check"); },CONFIRM_WINDOW);
+  $("heroMeta").textContent="sent · listening for the motor to re-report…";
 }
-function confirmSuccess(t){ clearTimeout(watchdog); pending=null; if(connected&&!demo)setPill("on",(device&&device.name||"BIKE").toUpperCase());
+function stopWaiting(){ clearTimeout(watchdog); clearInterval(nudgeTimer); clearInterval(countdownTimer); nudgeTimer=null; countdownTimer=null; }
+async function nudgeReread(){ if(!writeChar)return; try{ for(const t of READ_TRIGGERS){ await rawWrite(t); await new Promise(r=>setTimeout(r,80)); } }catch(_){ } }
+function confirmSuccess(t){ stopWaiting(); pending=null; if(connected&&!demo)setPill("on",(device&&device.name||"BIKE").toUpperCase());
   celebrate(t===35?"boost":"restore",t); }
-function failDiag(reason){ diag.reason=reason; clearTimeout(watchdog); pending=null; if(!demo)setPill("on",(device&&device.name||"BIKE").toUpperCase());
+function failDiag(reason){ diag.reason=reason; stopWaiting(); pending=null; if(!demo)setPill("on",(device&&device.name||"BIKE").toUpperCase());
   buildDiag(); show("view-diag"); vibe([0,60,40,60]); beep([180,150],0.18,"sawtooth"); }
+// re-check after a power-cycle: re-read the limit; if it now matches the target, celebrate
+async function recheck(){
+  if(demo||!connected||!writeChar){ return; }
+  const btn=$("diagRecheck"); btn.textContent="re-reading…"; diag.waitSeen=[]; pending=lastTarget;
+  await nudgeReread();
+  setTimeout(()=>{ pending=null;
+    if(lastTarget!=null && currentLimit===lastTarget){ show("view-main"); confirmSuccess(lastTarget); }
+    else { diag.reason="after re-check the controller reports "+(currentLimit!=null?currentLimit:"?")+" km/h"+(diag.waitSeen.length?"":" (still no fresh status frame)"); buildDiag(); }
+    btn.textContent="↻ re-check limit";
+  },3000);
+}
 
 /* ================= celebration ================= */
 const cv=$("celCanvas"),ctx=cv.getContext("2d"); let parts=[],raf=null,reduce=matchMedia("(prefers-reduced-motion:reduce)").matches;
@@ -424,6 +449,7 @@ function buildDiag(){
   L.push("<span class='k'>write</span>   "+(diag.writeProps||"(char not opened)"));
   L.push("<span class='k'>sent</span>    "+(diag.sent||"(nothing sent)"));
   L.push("<span class='k'>readback</span> last 02f83203 = "+(diag.readback||"(none received)"));
+  L.push("<span class='k'>during wait</span> "+(diag.waitSeen.length?diag.waitSeen.length+" status frame(s): "+diag.waitSeen.join(", "):"no 02f83203 arrived while waiting"));
   L.push("");
   L.push("<span class='k'>services</span>");
   (diag.services.length?diag.services:["(none captured)"]).forEach(s=>L.push("  "+s));
@@ -431,13 +457,16 @@ function buildDiag(){
   L.push("<span class='k'>recent raw CAN frames</span>");
   (diag.frames.length?diag.frames:["(none received — the bike never notified)"]).forEach(f=>L.push("  "+f));
   $("diagText").innerHTML=L.join("\n");
-  $("diagLead").textContent = diag.reason.includes("forward")
-    ? "The write was accepted but the motor never echoed the new limit — most likely the BLE bridge doesn't relay motor writes. This is exactly the screen I need."
+  $("diagLead").textContent = diag.reason.includes("NO 02f83203")||diag.reason.includes("no fresh")
+    ? "Couldn't confirm — the bike's status broadcast is slow. POWER-CYCLE the bike (off, wait 5s, on), reconnect, then tap re-check. If it reads 35 after that, it worked."
+    : diag.reason.includes("relaying")||diag.reason.includes("forward")
+    ? "The write was accepted but the controller kept reporting the old limit — most likely the BLE bridge doesn't relay motor writes. Screenshot this and send it; also try a power-cycle + re-check once."
     : "Something blocked the change. Screenshot this screen (or tap Copy) and send it to me.";
 }
 function diagText(){ return $("diagText").textContent; }
 $("diagLink").onclick=()=>{ buildDiag(); show("view-diag"); };
 $("diagClose").onclick=()=>show("view-main");
+$("diagRecheck").onclick=recheck;
 $("diagCopy").onclick=async()=>{ try{ await navigator.clipboard.writeText(diagText()); $("diagCopy").textContent="✓ copied"; setTimeout(()=>$("diagCopy").textContent="copy diagnostics",1400);}catch(_){ $("diagCopy").textContent="select & copy manually"; } };
 
 /* ================= boot ================= */
